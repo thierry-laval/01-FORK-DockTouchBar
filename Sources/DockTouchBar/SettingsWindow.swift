@@ -464,8 +464,10 @@ private final class SettingsFormState: ObservableObject {
     @Published var hasAccess = AppSwitcher.hasAccessibilityAccess
 
     func refresh() {
-        hasAccess = AppSwitcher.hasAccessibilityAccess
-        launchAtLogin = SMAppService.mainApp.status == .enabled
+        let access = AppSwitcher.hasAccessibilityAccess
+        if access != hasAccess { hasAccess = access }
+        let login = SMAppService.mainApp.status == .enabled
+        if login != launchAtLogin { launchAtLogin = login }
     }
 
     func setLaunchAtLogin(_ on: Bool) {
@@ -615,6 +617,12 @@ private struct SettingsForm: View {
         }
         .formStyle(.grouped)
         .onAppear {
+            state.refresh()
+        }
+        // 用户去系统设置打开权限、再切回来时刷新一次，否则这里一直显示“未开启”。
+        // 不挂定时器：窗口关掉后视图还活着（窗口是 isReleasedWhenClosed = false），
+        // 定时器会一直空转；而切回前台必然触发这条通知，已经够了。
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             state.refresh()
         }
     }
